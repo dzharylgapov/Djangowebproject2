@@ -1,0 +1,65 @@
+version: '3.7'
+
+services:
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./project:/usr/src/app/
+    ports:
+      - 1337:8000
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=ef29cfaa-a97e-4425-8808-46fcc0944a7c
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+
+  celery:
+    build: .
+    command: celery -A DjangoWebProject2.celery worker --loglevel=info --logfile=./logs/celery.log
+    volumes:
+      - ./project:/usr/src/app
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=ef29cfaa-a97e-4425-8808-46fcc0944a7c
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - CELERY_BROKER=redis://redis:6379/0
+      - CELERY_BACKEND=redis://redis:6379/0
+    depends_on:
+      - web
+      - redis
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: django_celery_example_celery_beat
+    command: celery -A DjangoWebProject2.celery beat --loglevel=info --logfile=./logs/celery.log
+    volumes:
+      - .:/app
+    env_file:
+      - ./.env/.dev-sample
+    depends_on:
+      - redis
+
+  flower:
+    build:
+        context: .
+        dockerfile: Dockerfile
+    image: django_celery_example_celery_flower
+    command: /start-flower
+    volumes:
+        - .:/app
+    env_file:
+        - ./.env/.dev-sample
+    ports:
+        - 5557:5555
+    depends_on:
+        - redis
+        - db
+
+  redis:
+    image: redis:5-alpine
