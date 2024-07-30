@@ -1,1 +1,1 @@
-# Djangowebproject2
+# MailingApp
